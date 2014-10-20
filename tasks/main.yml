@@ -1,0 +1,12 @@
+---
+- name: Install MySQL-Python
+  yum: name=MySQL-python state=installed
+- name: Create the keystone database
+  mysql_db: name={{ openstack_keystone_dbname }} state=present
+- name: Grant proper access to the keystone database
+  mysql_user: name=keystone password={{ openstack_keystone_dbpass }} priv={{ openstack_keystone_dbname }}.*:ALL state=present
+- name: Install Keystone packages
+  yum: name={{ item }} state=installed
+  with_items:
+  - openstack-keystone
+  - python-keystoneclient

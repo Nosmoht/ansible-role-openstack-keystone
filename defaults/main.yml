@@ -1,0 +1,3 @@
+---
+openstack_keystone_dbname: keystone
+openstack_keystone_dbpass: openstack
