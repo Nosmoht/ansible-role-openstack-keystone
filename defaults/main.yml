@@ -1,3 +1,7 @@
 ---
-openstack_keystone_dbname: keystone
-openstack_keystone_dbpass: openstack
+openstack_keystone_user_name: keystone
+openstack_keystone_group_name: keystone
+openstack_keystone_service_name: openstack-keystone
+openstack_keystone_config_file: /etc/keystone/keystone.conf
+openstack_keystone_log_dir: /var/log/keystone
+openstack_keystone_ssl_dir: /etc/keystone/ssl
