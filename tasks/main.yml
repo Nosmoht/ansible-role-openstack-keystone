@@ -1,12 +1,26 @@
 ---
-- name: Install MySQL-Python
-  yum: name=MySQL-python state=installed
-- name: Create the keystone database
-  mysql_db: name={{ openstack_keystone_dbname }} state=present
-- name: Grant proper access to the keystone database
-  mysql_user: name=keystone password={{ openstack_keystone_dbpass }} priv={{ openstack_keystone_dbname }}.*:ALL state=present
 - name: Install Keystone packages
-  yum: name={{ item }} state=installed
+  yum: name={{ item }} state=installed enablerepo=ol7_addons
   with_items:
   - openstack-keystone
   - python-keystoneclient
+- name: Configure Keystone's admin token
+  ini_file: dest={{ openstack_keystone_config_file }} section=DEFAULT option=admin_token value={{ openstack_keystone_admin_token }}
+- name: Configure Keystone's database access
+  ini_file: dest={{ openstack_keystone_config_file }} section=database option=connection value=mysql://{{ openstack_keystone_db_user_name }}:{{ openstack_keystone_db_user_pass }}@{{ openstack_database_node_name }}/{{ openstack_keystone_dbname }}
+- name: Create generic certificates and keys
+  command: keystone-manage pki_setup --keystone-user {{ openstack_keystone_user_name }} --keystone-group {{ openstack_keystone_group_name }}
+- name: Restrict access to SSL directory
+  file: dest={{ openstack_keystone_log_dir }} owner={{ openstack_keystone_user_name }} group={{ openstack_keystone_group_name }}
+- name: Restrict access to log directory
+  file: dest={{ openstack_keystone_ssl_dir }} owner={{ openstack_keystone_user_name }} group={{ openstack_keystone_group_name }} mode=0750
+- name: Populate the Identity service database
+  command: keystone-manage db_sync
+  notify:
+  - Start Keystone
+- name: Create admin tenant
+  os_tenant: name=admin description="Admin Tenant" state=present token={{ openstack_keystone_admin_token }} endpoint=http://{{ openstack_controller_node_name }}:35357/v2.0
+- name: Create admin user
+  os_user: name={{ openstack_admin_tenant_admin_user }} password={{ openstack_admin_tenant_admin_pass }} email="admin@example.com" enabled=True state=present token={{ openstack_keystone_admin_token }} endpoint=http://{{ openstack_controller_node_name }}:35357/v2.0
+- name: Create admin role
+  os_role: name=admin state=present token={{ openstack_keystone_admin_token }} endpoint=http://{{ openstack_controller_node_name }}:35357/v2.0
