@@ -1,1 +1,4 @@
 ---
+os_service:
+  OS_SERVICE_TOKEN: e4b019a72cb81650d42f
+  OS_SERVICE_ENDPOINT: http://{{ openstack_controller_node_name }}:35357/v2.0
