@@ -1,6 +1,6 @@
 ---
 - name: Install Keystone packages
-  yum: name={{ item }} state=installed enablerepo=ol7_addons
+  yum: name={{ item }} state=installed enablerepo=ol7_addons,ol7_optional_latest
   with_items:
   - openstack-keystone
   - python-keystoneclient
