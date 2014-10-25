@@ -16,8 +16,8 @@
   file: dest={{ openstack_keystone_ssl_dir }} owner={{ openstack_keystone_user_name }} group={{ openstack_keystone_group_name }} mode=0750
 - name: Populate the Identity service database
   command: keystone-manage db_sync
-  notify:
-  - Start Keystone
+- name: Start Openstack-Keystone service on configure on boot startup
+  service: name {{ openstack_keystone_service_name }} state=started enabled=True
 - name: Create admin tenant
   os_tenant: name=admin description="Admin Tenant" state=present token={{ openstack_keystone_admin_token }} endpoint=http://{{ openstack_controller_node_name }}:35357/v2.0
 - name: Create admin user
