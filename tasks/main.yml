@@ -35,8 +35,14 @@
 - name: Create admin user
   os_user: name={{ openstack_admin_tenant_admin_user }} password={{ openstack_admin_tenant_admin_pass }} email="admin@example.com" enabled=True state=present token={{ openstack_keystone_admin_token }} endpoint=http://{{ openstack_controller_node_name }}:35357/v2.0
   
-- name: Create Admin role
-  os_role: name=admin state=present token={{ openstack_keystone_admin_token }} endpoint=http://{{ openstack_controller_node_name }}:35357/v2.0
-
-- name: Assign Admin user to Admin role
-  os_user_role: user={{ openstack_admin_tenant_admin_user }} role=admin tenant=admin state=present token={{ openstack_keystone_admin_token }} endpoint=http://{{ openstack_controller_node_name }}:35357/v2.0
+- name: Create roles
+  os_role: name={{ item }} state=present token={{ openstack_keystone_admin_token }} endpoint=http://{{ openstack_controller_node_name }}:35357/v2.0
+  with_items:
+  - admin
+  - _member_
+  
+- name: Assign roles for user admin in tenant admin
+  os_user_role: user={{ openstack_admin_tenant_admin_user }} role={{ item }} tenant=admin state=present token={{ openstack_keystone_admin_token }} endpoint=http://{{ openstack_controller_node_name }}:35357/v2.0
+  with_items:
+  - admin
+  - _member_
