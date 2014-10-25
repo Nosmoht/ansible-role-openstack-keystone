@@ -1,3 +1,5 @@
 ---
-- name: Start Keystone
-  service: name={{ openstack_keystone_service_name }} state=running enabled=true
+- name: Restart Keystone
+  service: name={{ openstack_keystone_service_name }} state=restarted
+- name: Reload Keystone
+  service: name={{ openstack_keystone_service_name }} state=reloaed
