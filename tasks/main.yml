@@ -24,7 +24,7 @@
   command: keystone-manage db_sync
   
 - name: Start Openstack-Keystone service on configure on boot startup
-  service: name {{ openstack_keystone_service_name }} state=started enabled=True
+  service: name={{ openstack_keystone_service_name }} state=started enabled=yes
   
 - name: Create tenants
   os_tenant: name={{ item }} description="{{ item }} Tenant" state=present token={{ openstack_keystone_admin_token }} endpoint=http://{{ openstack_controller_node_name }}:35357/v2.0
