@@ -39,4 +39,4 @@
   os_role: name=admin state=present token={{ openstack_keystone_admin_token }} endpoint=http://{{ openstack_controller_node_name }}:35357/v2.0
 
 - name: Assign Admin user to Admin role
-  os_user_role: user={{ openstack_admin_tenant_admin_user }} role=admin tenat=admin token={{ openstack_keystone_admin_token }} endpoint=http://{{ openstack_controller_node_name }}:35357/v2.0
+  os_user_role: user={{ openstack_admin_tenant_admin_user }} role=admin tenant=admin token={{ openstack_keystone_admin_token }} endpoint=http://{{ openstack_controller_node_name }}:35357/v2.0
