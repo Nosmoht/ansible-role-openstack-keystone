@@ -23,6 +23,9 @@
 - name: Populate the Identity service database
   command: keystone-manage db_sync
   
+- name: Ensure permission of keystone log file
+  file: name=/var/log/keystone/keystone.log owner={{ openstack_keystone_user_name }} group={{ openstack_keystone_group_name }}
+  
 - name: Start Openstack-Keystone service on configure on boot startup
   service: name={{ openstack_keystone_service_name }} state=started enabled=yes
   
