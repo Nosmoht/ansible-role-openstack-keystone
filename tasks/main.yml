@@ -1,4 +1,14 @@
 ---
+- name: Create the keystone database
+  mysql_db: name={{ openstack_keystone_dbname }} state=present
+  delegate_to: "{{ openstack_database_node_name }}"
+- name: Grant proper access to the keystone database
+  mysql_user: name={{ openstack_keystone_db_user_name }} password={{ openstack_keystone_db_user_pass }} priv={{ openstack_keystone_dbname }}.*:ALL host={{ item }} state=present
+  with_items:
+  - localhost
+  - '%'
+  delegate_to: "{{ openstack_database_node_name }}"
+    
 - name: Install Keystone packages
   yum: name={{ item }} state=installed enablerepo=ol7_addons,ol7_optional_latest
   with_items:
