@@ -1,0 +1,81 @@
+#!/usr/bin/python2 -tt
+# -*- coding: utf-8 -*-
+
+import os
+
+OPENSTACK_KEYSTONE_BIN = '/usr/bin/keystone'
+
+# Output of 'keystone tenant-list' is something like
+# +----------------------------------+-------+---------+
+# |                id                |  name | enabled |
+# +----------------------------------+-------+---------+
+# | 43ac009b5b6241aeb14d72b8aa6afb48 | admin |   True  |
+# '+----------------------------------+-------+---------+
+def tenant_list(module, command):
+	rc, out, err = module.run_command('%s tenant-list' % (command))
+	if rc != 0:
+		module.fail_json(msg="Error while checking existing tenants.", rc=rc, err=err)
+	tenants = dict()
+	for row in out.split('\n'):
+		print row
+		if '|' in row:
+			items = [ item.strip() for item in row.split('|') ]
+			for item in items:
+				if not item:
+					items.remove('')
+			tenants.update({items[1]: {'id': items[0], 'description': items[2]}})
+			
+	return tenants
+		
+def tenant_exit(name, tenants):
+	return tenants.has_key(name)
+
+def create_tenant(module, command, name, description):
+	command = '%s tenant-create --name "%s"' % (command, name)
+	if description:
+		command = '%s --description "%s"' % (command, description)
+	rc, out, err = module.run_command(command)
+	if rc != 0:
+		module.fail_json(msg="Error while creating tenant", rc=rc, err=err)
+	return True 
+
+def delete_tenant(module, command, name):
+	command = '%s tenant-delete "%s"' % (command, name)
+	rc, out, err = module.run_command(command)
+	if rc != 0:
+		module.fail_json(msg="Error while deleting tenant", rc=rc, err=err)
+	return True
+	
+def ensure_tenant(module):
+	name = module.params['name']
+	state = module.params['state']
+	description = module.params['description']
+	token = module.params['token']
+	endpoint = module.params['endpoint']
+	command = '%s --os-token %s --os-endpoint %s' % (OPENSTACK_KEYSTONE_BIN, token, endpoint)
+	changed = False
+	
+	tenants = tenant_list(module, command)
+	if state == 'present' and not tenant_exit(name, tenants):
+		changed = create_tenant(module, command, name, description)
+	elif state == 'absent' and tenant_exit(name, tenants):
+		changed = delete_tenant(module, command, name)
+	return changed
+
+def main():
+	module = AnsibleModule(
+	    argument_spec=dict(
+			name=dict(required=True),
+	        state=dict(default='present', choices=['present', 'absent']),
+	        token=dict(Default=None, required=True),
+	        endpoint=dict(Default=None, required=True),
+			description=dict(Default=None, Type='str'),
+	    ),
+	)
+	
+	changed = ensure_tenant(module)
+	module.exit_json(changed=changed, name=module.params['name'])
+
+# import module snippets
+from ansible.module_utils.basic import *
+main()

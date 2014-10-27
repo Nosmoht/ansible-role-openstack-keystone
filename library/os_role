@@ -1,0 +1,77 @@
+#!/usr/bin/python2 -tt
+# -*- coding: utf-8 -*-
+
+import os
+
+OPENSTACK_KEYSTONE_BIN = '/usr/bin/keystone'
+
+# Output of 'keystone role-list' is something like
+# +----------------------------------+-------+
+# |                id                |  name |
+# +----------------------------------+-------+
+# | cf593e1e8b3c4d67bae0eb9cacc9537e | admin |
+# +----------------------------------+-------+
+def role_list(module, command):
+	rc, out, err = module.run_command('%s role-list' % (command))
+	if rc != 0:
+		module.fail_json(msg="Error while checking existing roles.", rc=rc, err=err)
+	roles = dict()
+	for row in out.split('\n'):
+		print row
+		if '|' in row:
+			items = [ item.strip() for item in row.split('|') ]
+			for item in items:
+				if not item:
+					items.remove('')
+			roles.update({items[1]: {'id': items[0]}})
+			
+	return roles
+		
+def role_exit(name, roles):
+	return roles.has_key(name)
+
+def create_role(module, command, name):
+	command = '%s role-create --name "%s"' % (command, name)
+	rc, out, err = module.run_command(command)
+	if rc != 0:
+ 		module.fail_json(msg="Error while creating role", rc=rc, err=err)
+	return True 
+
+def delete_role(module, command, name):
+	command = '%s role-delete "%s"' % (command, name)
+	rc, out, err = module.run_command(command)
+	if rc != 0:
+ 		module.fail_json(msg="Error while deleting role", rc=rc, err=err)
+	return True
+	
+def ensure_role(module):
+	name = module.params['name']
+	state = module.params['state']
+	token = module.params['token']
+	endpoint = module.params['endpoint']
+	command = '%s --os-token %s --os-endpoint %s' % (OPENSTACK_KEYSTONE_BIN, token, endpoint)
+	changed = False
+	
+	roles = role_list(module, command)
+	if state == 'present' and not role_exit(name, roles):
+		changed = create_role(module, command, name)
+	elif state == 'absent' and role_exit(name, roles):
+		changed = delete_role(module, command, name)
+	return changed
+
+def main():
+	module = AnsibleModule(
+	    argument_spec=dict(
+			name=dict(required=True, Type='str'),
+	        state=dict(default='present', choices=['present', 'absent']),
+	        token=dict(Default=None, required=True),
+	        endpoint=dict(Default=None, required=True),
+	    ),
+	)
+	
+	changed = ensure_role(module)
+	module.exit_json(changed=changed, name=module.params['name'])
+
+# import module snippets
+from ansible.module_utils.basic import *
+main()

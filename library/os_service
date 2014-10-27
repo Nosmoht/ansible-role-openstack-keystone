@@ -1,0 +1,77 @@
+#!/usr/bin/python2 -tt
+# -*- coding: utf-8 -*-
+
+import os
+
+OPENSTACK_KEYSTONE_BIN = '/usr/bin/keystone'
+
+# Output of 'keystone service-list' is something like
+def service_list(module, command):
+	rc, out, err = module.run_command('%s service-list' % (command))
+	if rc != 0:
+		module.fail_json(msg="Error while checking existing services.", rc=rc, err=err)
+	services = dict()
+	for row in out.split('\n'):
+		if '|' in row:
+			items = [ item.strip() for item in row.split('|') ]
+			for item in items:
+				if not item:
+					items.remove('')
+			services.update({items[1]: {'id': items[0], 'enabled': items[2], 'email': items[3]}})
+			
+	return services
+		
+def service_exit(name, services):
+	return services.has_key(name)
+
+def create_service(module, command, name, type, description):
+	command = '%s service-create --name %s --type %s' % (command, name, type)
+	if description:
+		command = '%s --description "%s"' % (command, description)
+	rc, out, err = module.run_command(command)
+	if rc != 0:
+ 		module.fail_json(msg="Error while creating service", rc=rc, err=err)
+	return True 
+
+def delete_service(module, command, name):
+	command = '%s service-delete %s' % (command, name)
+	rc, out, err = module.run_command(command)
+	if rc != 0:
+ 		module.fail_json(msg="Error while deleting service", rc=rc, err=err)
+	return True
+	
+def ensure_service(module):
+	name = module.params['name']
+	type = module.params['type']
+	desc = module.params['description']
+	state = module.params['state']
+	token = module.params['token']
+	endpoint = module.params['endpoint']
+	command = '%s --os-token %s --os-endpoint %s' % (OPENSTACK_KEYSTONE_BIN, token, endpoint)
+	changed = False
+	
+	services = service_list(module, command)
+	if state == 'present' and not service_exit(name, services):
+		changed = create_service(module, command, name, type, description)
+	elif state == 'absent' and service_exit(name, services):
+		changed = delete_service(module, command, name)
+	return changed
+
+def main():
+	module = AnsibleModule(
+	    argument_spec=dict(
+			name=dict(required=True, Type='str'),
+			type=dict(required=True, Type='str', choices['identity']),
+			description=dict(required=False, Type='str'),
+	        state=dict(default='present', choices=['present', 'absent']),
+	        token=dict(Default=None, required=True),
+	        endpoint=dict(Default=None, required=True),
+	    ),
+	)
+	
+	changed = ensure_service(module)
+	module.exit_json(changed=changed, name=module.params['name'])
+
+# import module snippets
+from ansible.module_utils.basic import *
+main()
