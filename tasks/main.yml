@@ -57,3 +57,6 @@
   with_items:
   - admin
   - _member_
+  
+- name: Create the service entity for the Identity service
+  os_service: name=keystone type=identity description="OpenStack Identity"
