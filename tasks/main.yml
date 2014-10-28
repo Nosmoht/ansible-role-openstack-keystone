@@ -2,6 +2,7 @@
 - name: Create the keystone database
   mysql_db: name={{ openstack_keystone_dbname }} state=present
   delegate_to: "{{ openstack_database_node_name }}"
+  
 - name: Grant proper access to the keystone database
   mysql_user: name={{ openstack_keystone_db_user_name }} password={{ openstack_keystone_db_user_pass }} priv={{ openstack_keystone_dbname }}.*:ALL host={{ item }} state=present
   with_items:
@@ -24,19 +25,16 @@
 - name: Create generic certificates and keys
   command: keystone-manage pki_setup --keystone-user {{ openstack_keystone_user_name }} --keystone-group {{ openstack_keystone_group_name }}
   
-- name: Restrict access to SSL directory
-  file: dest={{ openstack_keystone_log_dir }} owner={{ openstack_keystone_user_name }} group={{ openstack_keystone_group_name }}
-  
 - name: Restrict access to log directory
-  file: dest={{ openstack_keystone_ssl_dir }} owner={{ openstack_keystone_user_name }} group={{ openstack_keystone_group_name }} mode=0750
+  file: dest={{ openstack_keystone_log_dir }} owner={{ openstack_keystone_user_name }} group={{ openstack_keystone_group_name }} recurse=true
+  
+- name: Restrict access to SSL directory
+  file: dest={{ openstack_keystone_ssl_dir }} owner={{ openstack_keystone_user_name }} group={{ openstack_keystone_group_name }} mode=0750 recurse=true
   
 - name: Populate the Identity service database
   command: keystone-manage db_sync
-  
-- name: Ensure permission of keystone log file
-  file: name=/var/log/keystone/keystone.log owner={{ openstack_keystone_user_name }} group={{ openstack_keystone_group_name }}
-  
-- name: Start Openstack-Keystone service on configure on boot startup
+
+- name: Start Openstack-Keystone service and configure on boot startup
   service: name={{ openstack_keystone_service_name }} state=started enabled=yes
   
 - name: Create tenants
