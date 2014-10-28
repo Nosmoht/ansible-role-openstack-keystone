@@ -32,7 +32,7 @@
   file: dest={{ openstack_keystone_ssl_dir }} owner={{ openstack_keystone_user_name }} group={{ openstack_keystone_group_name }} mode=0750 recurse=true
   
 - name: Populate the Identity service database
-  command: keystone-manage db_sync
+  command: su -s /bin/sh -c "keystone-manage db_sync" {{ openstack_keystone_user_name }}
 
 - name: Start Openstack-Keystone service and configure on boot startup
   service: name={{ openstack_keystone_service_name }} state=started enabled=yes
