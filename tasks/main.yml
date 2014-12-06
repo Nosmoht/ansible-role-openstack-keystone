@@ -1,62 +1,109 @@
 ---
-- name: Create the keystone database
-  mysql_db: name={{ openstack_keystone_dbname }} state=present
-  delegate_to: "{{ openstack_database_node_name }}"
-  
-- name: Grant proper access to the keystone database
-  mysql_user: name={{ openstack_keystone_db_user_name }} password={{ openstack_keystone_db_user_pass }} priv={{ openstack_keystone_dbname }}.*:ALL host={{ item }} state=present
+- name: Creating the keystone database
+  mysql_db:
+    name: '{{ openstack_keystone_db_name }}'
+    state: present
+    login_user: '{{ openstack_mysql_user_name }}'
+    login_password: '{{ openstack_mysql_user_pass }}'
+  delegate_to: '{{ openstack_database_node_name }}'
+  tags: keystone_db
+
+- name: Granting proper access to the keystone database
+  mysql_user:
+    name: '{{ openstack_keystone_db_user_name }}'
+    password: '{{ openstack_keystone_db_user_pass }}'
+    priv: '{{ openstack_keystone_db_name }}.*:ALL'
+    host: '{{ item }}'
+    state: present
+    login_user: '{{ openstack_mysql_user_name }}'
+    login_password: '{{ openstack_mysql_user_pass }}'
   with_items:
   - localhost
   - '%'
-  delegate_to: "{{ openstack_database_node_name }}"
-    
-- name: Install Keystone packages
-  yum: name={{ item }} state=installed enablerepo=ol7_addons,ol7_optional_latest
-  with_items:
-  - openstack-keystone
-  - python-keystoneclient
-  
-- name: Configure Keystone's admin token
-  ini_file: dest={{ openstack_keystone_config_file }} section=DEFAULT option=admin_token value={{ openstack_keystone_admin_token }}
-  
-- name: Configure Keystone's database access
-  ini_file: dest={{ openstack_keystone_config_file }} section=database option=connection value=mysql://{{ openstack_keystone_db_user_name }}:{{ openstack_keystone_db_user_pass }}@{{ openstack_database_node_name }}/{{ openstack_keystone_dbname }}
-  
-- name: Create generic certificates and keys
-  command: keystone-manage pki_setup --keystone-user {{ openstack_keystone_user_name }} --keystone-group {{ openstack_keystone_group_name }}
-  
-- name: Restrict access to log directory
-  file: dest={{ openstack_keystone_log_dir }} owner={{ openstack_keystone_user_name }} group={{ openstack_keystone_group_name }} recurse=true
-  
-- name: Restrict access to SSL directory
-  file: dest={{ openstack_keystone_ssl_dir }} owner={{ openstack_keystone_user_name }} group={{ openstack_keystone_group_name }} mode=0750 recurse=true
-  
-- name: Populate the Identity service database
-  command: su -s /bin/sh -c "keystone-manage db_sync" {{ openstack_keystone_user_name }}
+  - '{{ ansible_hostname }}'
+  - '{{ ansible_fqdn }}'
+  delegate_to: '{{ openstack_database_node_name }}'
+  tags: keystone_db
 
-- name: Start Openstack-Keystone service and configure on boot startup
+- name: Installing Keystone packages
+  yum: name={{ item }} state=installed enablerepo=ol7_addons,ol7_optional_latest
+  with_items: openstack_keystone_packages
+  tags: keystone_install
+
+- name: Configuring Keystone's admin token
+  ini_file: 
+    dest: '{{ openstack_keystone_config_file }}'
+    section: DEFAULT
+    option: admin_token 
+    value: '{{ openstack_keystone_admin_token }}'
+  tags: keystone_config
+
+- name: Configuring Keystone's database access
+  ini_file: 
+    dest: '{{ openstack_keystone_config_file }}'
+    section: database
+    option: connection
+    value: 'mysql://{{ openstack_keystone_db_user_name }}:{{ openstack_keystone_db_user_pass }}@{{ openstack_database_node_name }}/{{ openstack_keystone_db_name }}'
+  tags: keystone_config
+
+- name: Creating generic certificates and keys
+  shell: keystone-manage pki_setup --keystone-user {{ openstack_keystone_os_user_name }} --keystone-group {{ openstack_keystone_os_group_name }}
+  tags: keystone_pki_setup
+
+- name: Restricting access to log directory
+  file: 
+    dest: '{{ openstack_keystone_log_dir }}'
+    owner: '{{ openstack_keystone_os_user_name }}'
+    group: '{{ openstack_keystone_os_group_name }}'
+    recurse: true
+
+- name: Restricting access to SSL directory
+  file: 
+    dest: '{{ openstack_keystone_ssl_dir }}'
+    owner: '{{ openstack_keystone_os_user_name }}'
+    group: '{{ openstack_keystone_os_group_name }}'
+    mode: 0750
+
+- name: Populating the Identity service database
+  keystone_manage: action=db_sync
+
+- name: Starting Openstack-Keystone service and configure on boot startup
   service: name={{ openstack_keystone_service_name }} state=started enabled=yes
-  
-- name: Create tenants
-  os_tenant: name={{ item }} description="{{ item }} Tenant" state=present token={{ openstack_keystone_admin_token }} endpoint=http://{{ openstack_controller_node_name }}:35357/v2.0
-  with_items:
-    - admin
-    - service
-    
-- name: Create admin user
-  os_user: name={{ openstack_admin_tenant_admin_user }} password={{ openstack_admin_tenant_admin_pass }} email="admin@example.com" enabled=True state=present token={{ openstack_keystone_admin_token }} endpoint=http://{{ openstack_controller_node_name }}:35357/v2.0
-  
-- name: Create roles
-  os_role: name={{ item }} state=present token={{ openstack_keystone_admin_token }} endpoint=http://{{ openstack_controller_node_name }}:35357/v2.0
-  with_items:
-  - admin
-  - _member_
-  
-- name: Assign roles for user admin in tenant admin
-  os_user_role: user={{ openstack_admin_tenant_admin_user }} role={{ item }} tenant=admin state=present token={{ openstack_keystone_admin_token }} endpoint=http://{{ openstack_controller_node_name }}:35357/v2.0
-  with_items:
-  - admin
-  - _member_
-  
-- name: Create the service entity for the Identity service
-  os_service: name=keystone type=identity description="OpenStack Identity"
+
+- name: Creating tenants
+  keystone_user:
+    tenant: '{{ item.name }}'
+    tenant_description: '{{ item.description }}'
+    state: present
+    token: '{{ openstack_keystone_admin_token }}'
+    endpoint: '{{ openstack_controller_endpoint }}'
+  with_items: openstack_tenants
+  tags: keystone_tenants
+
+- name: Creating users
+  keystone_user:
+    user: '{{ item.0.name }}'
+    password: '{{ item.0.password }}'
+    email: '{{ item.0.email }}'
+    tenant: '{{ item.1.tenant }}'
+    role: '{{ item.1.role }}'
+    state: present
+    token: '{{ openstack_keystone_admin_token }}'
+    endpoint: '{{ openstack_controller_endpoint }}'
+  with_subelements:
+  - openstack_users
+  - roles
+  tags: keystone_users
+
+#- name: Create the service entity for the Identity service
+#  os_service: name=keystone type=identity description="OpenStack Identity"
+
+- name: Creating service entity for Identity service
+  keystone_service: 
+    name: keystone
+    type: identity 
+    description: 'Keystone Identity Service'
+    url: '{{ openstack_controller_endpoint }}'
+    region: Unknown
+    token: '{{ openstack_keystone_admin_token }}'
+  tags: keystone_services

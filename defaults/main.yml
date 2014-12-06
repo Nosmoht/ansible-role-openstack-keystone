@@ -1,7 +1,13 @@
 ---
-openstack_keystone_user_name: keystone
-openstack_keystone_group_name: keystone
-openstack_keystone_service_name: openstack-keystone
+openstack_keystone_packages:
+- openstack-keystone
+- python-keystoneclient
 openstack_keystone_config_file: /etc/keystone/keystone.conf
 openstack_keystone_log_dir: /var/log/keystone
 openstack_keystone_ssl_dir: /etc/keystone/ssl
+openstack_keystone_os_user_name: keystone
+openstack_keystone_os_group_name: keystone
+openstack_keystone_service_name: openstack-keystone
+openstack_keystone_db_name: keystone
+openstack_keystone_db_user_name: keystone
+openstack_keystone_db_user_pass: openstack
